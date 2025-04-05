@@ -170,6 +170,18 @@ async function proxy(request) {
     const redirectDomain = new URL(request.url).hostname;
     return Response.redirect('https://' + redirectDomain + '/' + pageId, 307);
   }
+  else if (url.pathname.startsWith("/primus-v8")) {
+    url.hostname = "msgstore.www.notion.so";
+    response = await fetch(url.toString(), {
+      body: request.body,
+      headers: request.headers,
+      method: request.method,
+    });
+    response = new Response(response.body, response);
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set("Content-Type", "text/plain; charset=UTF-8");
+    return response;
+  }
   else {
     response = await fetch(url.toString(), {
       body: request.body,
@@ -340,6 +352,7 @@ var patchHead = /*html*/`
   window.XMLHttpRequest.prototype.open_ = window.XMLHttpRequest.prototype.open;
   window.XMLHttpRequest.prototype.open = function open_patched(method, url) {
     arguments[1] = arguments[1].replace(CUSTOM_DOMAIN, NOTION_DOMAIN);
+    arguments[1] = arguments[1].replace("msgstore.www.notion.so", CUSTOM_DOMAIN);
     // console.log(_PREFIX, 'XMLHttpRequest.open', {method, url}, arguments);
     return open.apply(this, [].slice.call(arguments));
   };
@@ -350,7 +363,6 @@ var patchHead = /*html*/`
     const mobileNav = document.querySelector('.notion-topbar-mobile');
     if (nav && nav.firstChild && nav.firstChild.firstChild || mobileNav && mobileNav.firstChild) {
       console.log(_PREFIX, "Mutation observer triggered");
-      // remove right logo
       updateSlug();
       observer.disconnect();
       if (nav.firstChild.children.length >= 3)
