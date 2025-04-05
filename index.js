@@ -290,6 +290,7 @@ var metadata = /*html*/`
   const _PREFIX = '[NOTIONFLARE]';
   const CUSTOM_DOMAIN = "${CUSTOM_DOMAIN}";
   const NOTION_DOMAIN = "${NOTION_DOMAIN}";
+  const NOTION_USER = "${NOTION_USER}";
   const ALIAS_TO_ID = ${JSON.stringify(ALIAS_TO_ID, null, 0)};
   const ID_TO_ALIAS = Object.fromEntries(Object.entries(ALIAS_TO_ID).map(([key, val]) => ([val, key])));
 </script>
