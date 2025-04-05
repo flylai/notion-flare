@@ -1,5 +1,6 @@
 const CUSTOM_DOMAIN = 'example.com';
-const NOTION_DOMAIN = 'foobar.notion.site';
+const NOTION_USER = 'foobar'
+const NOTION_DOMAIN = NOTION_USER + '.notion.site';
 const ROOT_PAGE_ID = '17e5421c2e0b808c93a0d418d22abcde';
 
 // SEO
@@ -31,7 +32,15 @@ const GOOGLE_FONT = 'Roboto';
 
 // Customize the page with CSS
 const CUSTOM_CSS = /*css*/`
-
+  div.notion-topbar > div > div:nth-child(3) { display: none !important; }
+  div.notion-topbar > div > div:nth-child(4) { display: none !important; }
+  div.notion-topbar > div > div:nth-child(5) { display: none !important; }
+  div.notion-topbar > div > div:nth-child(6) { display: none !important; }
+  div.notion-topbar > div > div:nth-child(7) { display: none !important; }
+  div.notion-topbar-mobile > div:nth-child(3) { display: none !important; }
+  div.notion-topbar-mobile > div:nth-child(4) { display: none !important; }
+  div.notion-topbar > div > div:nth-child(1n).toggle-mode { display: block !important; }
+  div.notion-topbar-mobile > div:nth-child(1n).toggle-mode { display: block !important; }
 `;
 
 // Custom HTML on the head of the page
@@ -118,9 +127,8 @@ async function proxy(request) {
   }
   // API
   else if ((url.pathname.startsWith('/api'))) {
-
     // "Continue to external site" error.
-    if (url.pathname.startsWith('/api/v3/getPublicPageData')) return new Response();
+    // if (url.pathname.startsWith('/api/v3/getPublicPageData')) return new Response();
 
     // Forward API
     response = await fetch(url.toString(), {
@@ -129,7 +137,7 @@ async function proxy(request) {
         'content-type': 'application/json;charset=UTF-8',
         'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36'
       },
-      body: request.body,
+      body: url.pathname.startsWith('/api/v3/getPublicPageData') ? null : request.body,
     });
 
     let body;
@@ -287,10 +295,10 @@ var patchHead = /*html*/`
   function updateSlug() {
     const alias = ID_TO_ALIAS[getPageId()];
     if (alias !== undefined) {
-      console.log(_PREFIX, 'updateSlug replacing pageId with alias', {pageId: getPageId(), alias});
+      console.log(_PREFIX, 'updateSlug replacing pageId with alias', { pageId: getPageId(), alias });
       history.replaceState(history.state, '', '/' + alias);
     } else {
-      console.log(_PREFIX, 'updateSlug no alias found for pageId', {pageId: getPageId(), alias});
+      console.log(_PREFIX, 'updateSlug no alias found for pageId', { pageId: getPageId(), alias });
     }
   }
 
@@ -302,6 +310,7 @@ var patchHead = /*html*/`
       console.log(_PREFIX, 'replacing alias back to pageId with bypass', pageId, getSlug());
       history.replaceState_(history.state, 'bypass', '/' + pageId);
     }
+    // This line throws an exception, but it works for some expectations.
     onpopstate.apply(this, [].slice.call(arguments));
     updateSlug();
   };
@@ -309,8 +318,9 @@ var patchHead = /*html*/`
   // patch replaceState to prevent alias from being replaced with pageId
   window.history.replaceState_ = window.history.replaceState;
   window.history.replaceState = function replaceState_patched(state, unused, url) {
-    console.log(_PREFIX, 'replaceState', {state, unused, url, prevented: ALIAS_TO_ID[getSlug()] !== undefined });
+    console.log(_PREFIX, 'replaceState', { state, unused, url, prevented: ALIAS_TO_ID[getSlug()] !== undefined, arguments });
     if (ALIAS_TO_ID[getSlug()] !== undefined) return; // is aliased page, do nothing
+    url = url.replace(NOTION_USER + "/", "");
     return window.history.replaceState_.apply(window.history, arguments);
   };
 
@@ -320,7 +330,8 @@ var patchHead = /*html*/`
     const dest = new URL(location.protocol + location.host + url);
     const pageId = dest.pathname.slice(-32);
     if (ID_TO_ALIAS[pageId]) url = '/' + ID_TO_ALIAS[pageId]; // replace pageId with alias if found
-    console.log(_PREFIX, 'pushState', {state, unused, url, dest, pageId, alias: ID_TO_ALIAS[pageId]});
+    else url = '/' + pageId;
+    console.log(_PREFIX, 'pushState', { state, unused, url, dest, pageId, alias: ID_TO_ALIAS[pageId] });
     return window.history.pushState_.apply(window.history, [state, unused, url]);
   };
 
@@ -329,7 +340,7 @@ var patchHead = /*html*/`
   window.XMLHttpRequest.prototype.open_ = window.XMLHttpRequest.prototype.open;
   window.XMLHttpRequest.prototype.open = function open_patched(method, url) {
     arguments[1] = arguments[1].replace(CUSTOM_DOMAIN, NOTION_DOMAIN);
-    console.log(_PREFIX, 'XMLHttpRequest.open', {method, url}, arguments);
+    // console.log(_PREFIX, 'XMLHttpRequest.open', {method, url}, arguments);
     return open.apply(this, [].slice.call(arguments));
   };
 
@@ -339,8 +350,11 @@ var patchHead = /*html*/`
     const mobileNav = document.querySelector('.notion-topbar-mobile');
     if (nav && nav.firstChild && nav.firstChild.firstChild || mobileNav && mobileNav.firstChild) {
       console.log(_PREFIX, "Mutation observer triggered");
+      // remove right logo
       updateSlug();
       observer.disconnect();
+      if (nav.firstChild.children.length >= 3)
+        nav.firstChild.children[2].remove();
     }
   });
 
